@@ -136,9 +136,11 @@
     dialog .actions { display: flex; justify-content: flex-end; gap: 8px; }
 
     @media (max-width: 640px) {
-      .row, .fhead { grid-template-columns: 1fr 64px; }
+      .row { grid-template-columns: 1fr 64px; }
+      .fhead { grid-template-columns: 1fr auto; }
       .row .bar, .fhead .bar { grid-column: 1 / -1; grid-row: 2; }
       .stages { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+      .stage .btns button { min-width: 40px; min-height: 34px; }
       .fields { grid-template-columns: 1fr; }
     }
   </style>
