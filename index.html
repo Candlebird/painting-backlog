@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painting Backlog</title>
+  <meta name="description" content="Paint progress for every model in the group's Crusade forces.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖌️</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Same palette as the Crusade Dataslate, so the two read as one family. */
+    :root {
+      --bg: #0c0d0f;
+      --panel: #1a1d22;
+      --panel-2: #22262c;
+      --line: #343a42;
+      --line-2: #4a525c;
+      --text: #d9d4c7;
+      --muted: #9a9484;
+      --gold: #c9a24a;
+      --red: #b3352b;
+      --radius: 3px;
+      --serif: 'Cinzel', Georgia, serif;
+      --sans: 'Rajdhani', 'Segoe UI', system-ui, sans-serif;
+      /* One colour per stage, Unbuilt to Based. */
+      --s0: #3a4049;
+      --s1: #8c7a62;
+      --s2: #6b7a8f;
+      --s3: #c9a24a;
+      --s4: #6f9a4a;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: radial-gradient(ellipse at top, rgba(201, 162, 74, .07), transparent 60%), var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1.45;
+      min-height: 100vh;
+    }
+    a { color: var(--gold); text-decoration: none; }
+    a:hover { color: #e8c46a; }
+    h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: .06em; color: var(--gold); margin: 0; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.2rem; }
+    h3 { font-size: 1rem; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    button {
+      background: var(--panel-2); border: 1px solid var(--line-2); border-radius: var(--radius);
+      padding: 4px 12px; cursor: pointer; font-weight: 600;
+    }
+    button:hover { border-color: var(--gold); }
+    button:disabled { opacity: .4; cursor: default; border-color: var(--line-2); }
+    button.primary { background: var(--gold); color: #17140c; border-color: var(--gold); }
+    button.danger { border-color: var(--red); color: #e7887f; }
+    input, select, textarea {
+      background: var(--bg); border: 1px solid var(--line-2); border-radius: var(--radius); padding: 5px 8px;
+    }
+    input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+    textarea { width: 100%; min-height: 64px; resize: vertical; }
+    .muted { color: var(--muted); }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 0 16px; }
+
+    header.top { border-bottom: 1px solid var(--line); background: rgba(12, 13, 15, .85); }
+    header.top .wrap { display: flex; gap: 16px; align-items: center; justify-content: space-between; padding-top: 16px; padding-bottom: 16px; flex-wrap: wrap; }
+    header.top p { margin: 2px 0 0; color: var(--muted); }
+    #account { display: flex; align-items: center; gap: 10px; }
+    #account img { width: 28px; height: 28px; border-radius: 50%; }
+
+    main { padding: 24px 0 64px; }
+    .notice { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+    .notice.err { border-color: var(--red); }
+    .notice p { margin: 0 0 12px; }
+    .notice p:last-child { margin-bottom: 0; }
+
+    .players { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .pcard { text-align: left; padding: 12px 14px; background: var(--panel); border-color: var(--line); display: grid; gap: 6px; font-weight: 500; }
+    .pcard.on { border-color: var(--gold); }
+    .pcard b { font-family: var(--serif); color: var(--gold); letter-spacing: .04em; }
+
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-bottom: 20px; }
+    .toolbar input[type=search] { flex: 1 1 200px; }
+    .toolbar label { display: flex; gap: 6px; align-items: center; }
+    .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .9rem; color: var(--muted); width: 100%; }
+    .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: 0; }
+
+    .bar { display: flex; height: 10px; border-radius: 2px; overflow: hidden; background: var(--s0); min-width: 60px; }
+    .bar i { display: block; height: 100%; }
+    .stat { font-size: .92rem; color: var(--muted); white-space: nowrap; }
+    .stat b { color: var(--text); }
+
+    section.player { margin-bottom: 32px; }
+    .phead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 6px; margin-bottom: 12px; }
+    .force { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 12px; }
+    .fhead { display: grid; grid-template-columns: 1fr minmax(80px, 200px) auto; gap: 12px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+    .fhead .muted { font-size: .9rem; }
+    .fhead-actions { padding: 10px 14px; border-top: 1px solid var(--line); }
+    ul.units { list-style: none; margin: 0; padding: 0; }
+    li.unit + li.unit { border-top: 1px solid var(--line); }
+    .row {
+      width: 100%; display: grid; grid-template-columns: 1fr minmax(80px, 200px) 64px; gap: 12px; align-items: center;
+      background: none; border: 0; border-radius: 0; padding: 9px 14px; text-align: left; font-weight: 500;
+    }
+    .row:hover { background: var(--panel-2); }
+    .uname small { color: var(--muted); margin-left: 6px; }
+    .tag { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border: 1px solid var(--line-2); border-radius: 2px; padding: 0 4px; margin-left: 6px; }
+    .ucount { text-align: right; color: var(--muted); }
+    .empty { padding: 12px 14px; color: var(--muted); }
+
+    .editor { padding: 4px 14px 16px; display: grid; gap: 14px; background: var(--panel-2); }
+    .stages { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+    .stage { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; display: grid; gap: 6px; justify-items: center; }
+    .stage .n { font-family: var(--serif); font-size: 1.4rem; color: var(--text); line-height: 1; }
+    .stage .lbl { font-size: .85rem; color: var(--muted); }
+    .stage .btns { display: flex; gap: 4px; }
+    .stage .btns button { padding: 0 10px; }
+    .quick { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .fields label, .meta label { display: grid; gap: 4px; font-size: .9rem; color: var(--muted); }
+    .meta { display: flex; gap: 12px; flex-wrap: wrap; }
+    .meta input[type=number] { width: 90px; }
+    .readonly { white-space: pre-wrap; color: var(--text); }
+    .photo { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+    .photo img { max-width: 260px; max-height: 260px; border-radius: var(--radius); border: 1px solid var(--line); }
+    .file-btn { position: relative; overflow: hidden; display: inline-block; }
+    .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+    dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line-2); border-radius: var(--radius); padding: 20px; width: min(420px, calc(100vw - 32px)); }
+    dialog::backdrop { background: rgba(0, 0, 0, .6); }
+    dialog form { display: grid; gap: 12px; }
+    dialog label { display: grid; gap: 4px; color: var(--muted); font-size: .9rem; }
+    dialog .actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+    @media (max-width: 640px) {
+      .row, .fhead { grid-template-columns: 1fr 64px; }
+      .row .bar, .fhead .bar { grid-column: 1 / -1; grid-row: 2; }
+      .stages { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+      .fields { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <div>
+        <h1>Painting Backlog</h1>
+        <p>Paint progress for the group's <a href="../crusade-dataslate/">Crusade forces</a>.</p>
+      </div>
+      <div id="account"></div>
+    </div>
+  </header>
+  <main class="wrap" id="app"></main>
+
+  <dialog id="extra-dlg">
+    <form method="dialog" id="extra-form">
+      <h2>Add other models</h2>
+      <p class="muted" style="margin:0">For models you own that aren't in a Crusade force yet.</p>
+      <label>Name <input name="name" required maxlength="80" placeholder="e.g. Battle Brothers box"></label>
+      <label>Number of models <input name="size" type="number" min="1" max="999" value="1" required></label>
+      <div class="actions">
+        <button type="button" value="cancel" id="extra-cancel">Cancel</button>
+        <button class="primary" value="ok">Add</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
+    import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+    import { collection, doc, getDoc, getFirestore, onSnapshot, setDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+
+    // The Crusade Dataslate's Firebase project (not secret: its firestore.rules protect the data).
+    // Forces are read from forces/*, which only the Dataslate writes. This site writes paint/* and paintPhotos/*.
+    const app = initializeApp({
+      apiKey: 'AIzaSyBHBFpcIP-S9m7hp6nEa07Y7aTlaE01cRA',
+      authDomain: 'crusade-dataslate.firebaseapp.com',
+      projectId: 'crusade-dataslate',
+      storageBucket: 'crusade-dataslate.firebasestorage.app',
+      messagingSenderId: '765607704790',
+      appId: '1:765607704790:web:cc6bc5539e268daacdb177',
+    });
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const STAGES = ['Unbuilt', 'Built', 'Primed', 'Painted', 'Based'];
+    const VIEW_KEY = 'paintingBacklog.view';
+
+    const state = {
+      user: undefined,
+      /** loading | out | denied | ok */
+      access: 'loading',
+      forces: [],
+      paint: new Map(),
+      members: new Map(),
+      photos: new Map(),
+      open: new Set(),
+      armed: null,
+      error: '',
+      who: 'all',
+      q: '',
+      hideDone: false,
+    };
+    try { Object.assign(state, JSON.parse(localStorage.getItem(VIEW_KEY) || '{}')); } catch {}
+    const saveView = () => { try { localStorage.setItem(VIEW_KEY, JSON.stringify({ who: state.who, hideDone: state.hideDone })); } catch {} };
+
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+    const sum = (a) => a.reduce((t, n) => t + n, 0);
+    const me = () => state.user?.email;
+
+    // ---- Data ----------------------------------------------------------------------------------------
+
+    let unsubs = [];
+    onAuthStateChanged(auth, (u) => {
+      unsubs.forEach((f) => f());
+      unsubs = [];
+      Object.assign(state, { user: u, access: u ? 'loading' : 'out', forces: [], paint: new Map(), photos: new Map(), error: '' });
+      render();
+      if (!u) return;
+      unsubs.push(onSnapshot(collection(db, 'forces'), (snap) => {
+        state.access = 'ok';
+        state.forces = snap.docs.map((d) => {
+          const v = d.data();
+          try { return { ...JSON.parse(v.data), id: d.id, owner: v.owner }; } catch { return null; }
+        }).filter((f) => f && f.owner);
+        render();
+      }, (e) => {
+        if (e.code === 'permission-denied') state.access = 'denied';
+        else state.error = e.message;
+        render();
+      }));
+      unsubs.push(onSnapshot(collection(db, 'paint'), (snap) => {
+        state.paint = new Map(snap.docs.map((d) => [d.id, d.data()]));
+        render();
+      }, (e) => {
+        if (state.access !== 'denied') state.error = `Can't read paint progress: ${e.message}`;
+        render();
+      }));
+      unsubs.push(onSnapshot(collection(db, 'members'), (snap) => {
+        state.members = new Map(snap.docs.map((d) => [d.id, String(d.data().name || '')]));
+        render();
+      }, () => {}));
+    });
+
+    /** Models at each stage, Unbuilt first. Paint docs store Built..Based; Unbuilt is whatever is left. */
+    function stageCounts(p, size) {
+      const n = [0, 0, 0, 0].map((_, i) => Math.max(0, Math.floor(Number(p?.n?.[i]) || 0)));
+      // If the unit shrank in the Dataslate, drop the least-finished models first.
+      let over = sum(n) - size;
+      for (let i = 0; i < n.length && over > 0; i++) {
+        const cut = Math.min(n[i], over);
+        n[i] -= cut;
+        over -= cut;
+      }
+      return [size - sum(n), ...n];
+    }
+
+    /** Everything grouped by player: their forces' units, their other models, and entries whose unit is gone. */
+    function buildModel() {
+      const units = new Map();
+      for (const f of state.forces) for (const u of f.units ?? []) units.set(u.id, { u, f });
+      const players = new Map();
+      const player = (email) => {
+        if (!players.has(email)) players.set(email, { email, name: '', forces: [], extras: [], gone: [] });
+        return players.get(email);
+      };
+      const entry = (id, base) => {
+        const p = state.paint.get(id);
+        return { id, p, ...base, counts: stageCounts(p, base.size) };
+      };
+      for (const f of [...state.forces].sort((a, b) => String(a.name).localeCompare(String(b.name)))) {
+        const pl = player(f.owner);
+        if (!pl.name && f.player) pl.name = f.player;
+        const list = (f.units ?? []).map((u) => entry(u.id, {
+          kind: 'unit', force: f, u, name: u.name || u.unitType, sub: u.name && u.unitType !== u.name ? u.unitType : '',
+          size: Math.max(0, Number(u.size) || 0), fallen: u.status === 'removed', canEdit: f.owner === me(),
+        }));
+        pl.forces.push({ f, units: list });
+      }
+      for (const [id, p] of state.paint) {
+        if (units.has(id) || !p.owner) continue;
+        const pl = player(p.owner);
+        const e = entry(id, { kind: p.unitId ? 'gone' : 'extra', name: p.name || 'Unnamed', sub: p.unitType || '', size: Math.max(0, Number(p.size) || 0), canEdit: p.owner === me() });
+        (p.unitId ? pl.gone : pl.extras).push(e);
+      }
+      for (const pl of players.values()) {
+        pl.name = state.members.get(pl.email) || pl.name || pl.email.split('@')[0];
+        pl.extras.sort((a, b) => a.name.localeCompare(b.name));
+        pl.totals = totals([...pl.forces.flatMap((x) => x.units), ...pl.extras]);
+      }
+      return [...players.values()].sort((a, b) => (a.email === me() ? -1 : b.email === me() ? 1 : a.name.localeCompare(b.name)));
+    }
+
+    function totals(entries) {
+      const t = [0, 0, 0, 0, 0];
+      for (const e of entries) e.counts.forEach((n, i) => (t[i] += n));
+      return t;
+    }
+
+    // ---- Writes --------------------------------------------------------------------------------------
+
+    const fail = (e) => { state.error = e.code === 'permission-denied' ? "You can't change that one (or the security rules haven't been published yet)." : e.message; render(); };
+
+    function paintDoc(e, patch) {
+      const d = { ...(e.p ?? {}), ...patch, owner: me(), updatedAt: new Date().toISOString() };
+      if (e.kind === 'unit') Object.assign(d, { unitId: e.id, forceId: e.force.id, name: e.name, unitType: e.u.unitType || '', size: e.size });
+      return d;
+    }
+
+    const savePaint = (e, patch) => setDoc(doc(db, 'paint', e.id), paintDoc(e, patch)).catch(fail);
+    const saveCounts = (e, c) => savePaint(e, { n: c.slice(1) });
+
+    async function removeEntry(e) {
+      const b = writeBatch(db);
+      if (e.p?.photo) b.delete(doc(db, 'paintPhotos', e.id));
+      b.delete(doc(db, 'paint', e.id));
+      await b.commit().catch(fail);
+    }
+
+    /** Shrink a photo until it fits comfortably inside one Firestore document (1 MB). */
+    async function shrink(file) {
+      const img = await createImageBitmap(file);
+      let max = 1400;
+      for (;;) {
+        const k = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * k);
+        c.height = Math.round(img.height * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        const url = c.toDataURL('image/jpeg', 0.82);
+        if (url.length < 600_000 || max < 300) return url;
+        max = Math.round(max * 0.75);
+      }
+    }
+
+    async function setPhoto(e, file) {
+      try {
+        const data = file ? await shrink(file) : null;
+        const b = writeBatch(db);
+        b.set(doc(db, 'paint', e.id), paintDoc(e, { photo: !!data }));
+        if (data) b.set(doc(db, 'paintPhotos', e.id), { owner: me(), data });
+        else b.delete(doc(db, 'paintPhotos', e.id));
+        await b.commit();
+        if (data) state.photos.set(e.id, data);
+        else state.photos.delete(e.id);
+        render();
+      } catch (err) { fail(err); }
+    }
+
+    function loadPhoto(id) {
+      if (state.photos.has(id)) return;
+      state.photos.set(id, '');
+      getDoc(doc(db, 'paintPhotos', id)).then((s) => {
+        state.photos.set(id, String(s.data()?.data || ''));
+        render();
+      }).catch(() => state.photos.delete(id));
+    }
+
+    // ---- Rendering -----------------------------------------------------------------------------------
+
+    const bar = (c) => {
+      const total = sum(c) || 1;
+      return `<span class="bar" title="${c.map((n, i) => `${STAGES[i]} ${n}`).join(' · ')}">${c.map((n, i) => (n ? `<i style="width:${(n / total) * 100}%;background:var(--s${i})"></i>` : '')).join('')}</span>`;
+    };
+    const done = (c) => c[3] + c[4];
+    const stat = (c) => {
+      const total = sum(c);
+      return `<span class="stat"><b>${done(c)}</b> / ${total} painted${total ? ` · ${Math.round((done(c) / total) * 100)}%` : ''}</span>`;
+    };
+    const matches = (e, f) => {
+      const q = state.q.trim().toLowerCase();
+      if (state.hideDone && e.size > 0 && e.counts[4] === e.size) return false;
+      return !q || [e.name, e.sub, f?.name, f?.faction].some((s) => String(s ?? '').toLowerCase().includes(q));
+    };
+
+    function account() {
+      const el = document.getElementById('account');
+      const u = state.user;
+      el.innerHTML = u
+        ? `${u.photoURL ? `<img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">` : ''}<span class="muted">${esc(u.email)}</span><button data-act="signout">Sign out</button>`
+        : u === null ? '<button class="primary" data-act="signin">Sign in with Google</button>' : '';
+    }
+
+    function render() {
+      account();
+      const app = document.getElementById('app');
+      // Re-rendering replaces the page, so carry over whatever field has focus.
+      const a = document.activeElement;
+      const keep = a?.id && app.contains(a) ? { id: a.id, value: a.value, s: a.selectionStart, e: a.selectionEnd } : null;
+
+      app.innerHTML = page();
+
+      if (keep) {
+        const el = document.getElementById(keep.id);
+        if (el) {
+          if (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type !== 'checkbox')) el.value = keep.value;
+          el.focus();
+          try { el.setSelectionRange(keep.s, keep.e); } catch {}
+        }
+      }
+    }
+
+    function page() {
+      const err = state.error ? `<div class="notice err"><p>${esc(state.error)}</p><p><button data-act="dismiss">Dismiss</button></p></div>` : '';
+      if (state.access === 'loading') return `${err}<p class="muted">Loading…</p>`;
+      if (state.access === 'out') {
+        return `${err}<div class="notice"><p>Sign in with the Google account you use on the <a href="../crusade-dataslate/">Crusade Dataslate</a>. Every unit in the group's forces shows up here, model by model, and you track how far each one is painted.</p><p><button class="primary" data-act="signin">Sign in with Google</button></p></div>`;
+      }
+      if (state.access === 'denied') {
+        return `${err}<div class="notice"><p>This Google account isn't in the Crusade campaign yet.</p><p>Open the <a href="../crusade-dataslate/">Dataslate</a> and ask to join; once the GM lets you in, your forces appear here.</p></div>`;
+      }
+
+      const players = buildModel();
+      if (state.who !== 'all' && !players.some((p) => p.email === state.who)) state.who = 'all';
+      const shown = players.filter((p) => state.who === 'all' || p.email === state.who);
+
+      const cards = players.map((p) => `
+        <button class="pcard ${state.who === p.email ? 'on' : ''}" data-act="who" data-who="${esc(p.email)}" title="Show only ${esc(p.name)}">
+          <b>${esc(p.name)}${p.email === me() ? ' (you)' : ''}</b>${bar(p.totals)}${stat(p.totals)}
+        </button>`).join('');
+
+      const toolbar = `
+        <div class="toolbar">
+          <select id="who" aria-label="Player">
+            <option value="all">All players</option>
+            ${players.map((p) => `<option value="${esc(p.email)}" ${state.who === p.email ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}
+          </select>
+          <input type="search" id="q" placeholder="Search units or forces" value="${esc(state.q)}">
+          <label><input type="checkbox" id="hide-done" ${state.hideDone ? 'checked' : ''}> Hide finished</label>
+          <div class="legend">${STAGES.map((s, i) => `<span><span class="sw" style="background:var(--s${i})"></span>${s}</span>`).join('')}</div>
+        </div>`;
+
+      const sections = shown.map((p) => {
+        const mine = p.email === me();
+        const forces = p.forces.map(({ f, units }) => {
+          const t = totals(units);
+          const rows = units.filter((e) => matches(e, f));
+          if (!rows.length && state.q) return '';
+          return `<div class="force">
+            <div class="fhead"><div><h3>${esc(f.name || 'Unnamed force')}</h3><span class="muted">${esc(f.faction || '')}</span></div>${bar(t)}${stat(t)}</div>
+            <ul class="units">${rows.map(unitRow).join('') || '<li class="empty">No units here.</li>'}</ul>
+          </div>`;
+        }).join('');
+        const extras = p.extras.filter((e) => matches(e));
+        const extrasBlock = extras.length || mine ? `<div class="force">
+            <div class="fhead"><div><h3>Other models</h3><span class="muted">Not in a Crusade force</span></div>${bar(totals(p.extras))}${stat(totals(p.extras))}</div>
+            <ul class="units">${extras.map(unitRow).join('') || '<li class="empty">Nothing yet.</li>'}</ul>
+            ${mine ? '<div class="fhead-actions"><button data-act="add-extra">+ Add models</button></div>' : ''}
+          </div>` : '';
+        const gone = p.gone.length ? `<div class="force">
+            <div class="fhead"><div><h3>No longer in the Dataslate</h3><span class="muted">These units were deleted from their force. Remove them here once you don't need the notes.</span></div></div>
+            <ul class="units">${p.gone.map(unitRow).join('')}</ul>
+          </div>` : '';
+        return `<section class="player">
+          <div class="phead"><h2>${esc(p.name)}</h2>${stat(p.totals)}</div>
+          ${forces || (p.forces.length ? '' : '<p class="muted">No Crusade forces yet.</p>')}${extrasBlock}${gone}
+        </section>`;
+      }).join('');
+
+      return `${err}<div class="players">${cards}</div>${toolbar}${sections || '<p class="muted">No forces in the Dataslate yet.</p>'}`;
+    }
+
+    function unitRow(e) {
+      const open = state.open.has(e.id);
+      const tags = (e.fallen ? '<span class="tag">Fallen</span>' : '') + (e.p?.photo ? '<span class="tag">Photo</span>' : '');
+      return `<li class="unit" data-id="${esc(e.id)}">
+        <button class="row" data-act="toggle" aria-expanded="${open}">
+          <span class="uname">${esc(e.name)}${e.sub ? `<small>${esc(e.sub)}</small>` : ''}${tags}</span>
+          ${bar(e.counts)}
+          <span class="ucount">${done(e.counts)}/${e.size}</span>
+        </button>
+        ${open ? editor(e) : ''}
+      </li>`;
+    }
+
+    function editor(e) {
+      const c = e.counts;
+      const ed = e.canEdit;
+      const stages = STAGES.map((s, i) => `<div class="stage">
+          <span class="lbl"><span class="sw" style="background:var(--s${i})"></span>${s}</span>
+          <span class="n">${c[i]}</span>
+          ${ed && i > 0 ? `<span class="btns">
+            <button data-act="dec" data-i="${i}" ${c[i] ? '' : 'disabled'} aria-label="One fewer ${s}">−</button>
+            <button data-act="inc" data-i="${i}" ${sum(c.slice(0, i)) ? '' : 'disabled'} aria-label="One more ${s}">+</button>
+          </span>` : ''}
+        </div>`).join('');
+      const quick = ed && e.size ? `<div class="quick"><span class="muted">Whole unit:</span>${STAGES.map((s, i) => `<button data-act="all" data-i="${i}" ${c[i] === e.size ? 'disabled' : ''}>${s}</button>`).join('')}</div>` : '';
+      const text = (key, label, ph) => ed
+        ? `<label>${label}<textarea id="${key}-${esc(e.id)}" data-field="${key}" placeholder="${ph}">${esc(e.p?.[key] || '')}</textarea></label>`
+        : e.p?.[key] ? `<label>${label}<span class="readonly">${esc(e.p[key])}</span></label>` : '';
+      const fields = text('recipe', 'Paint recipe', 'e.g. Mephiston Red base, Agrax wash, Evil Sunz highlight') + text('notes', 'Notes', 'Anything else');
+
+      if (e.p?.photo) loadPhoto(e.id);
+      const src = state.photos.get(e.id);
+      const photo = `<div class="photo">
+          ${e.p?.photo ? (src ? `<img src="${src}" alt="Photo of ${esc(e.name)}">` : '<span class="muted">Loading photo…</span>') : ''}
+          ${ed ? `<span class="file-btn"><button tabindex="-1">${e.p?.photo ? 'Replace photo' : 'Add photo'}</button><input type="file" accept="image/*" data-act="photo" aria-label="Choose a photo"></span>
+            ${e.p?.photo ? '<button data-act="unphoto">Remove photo</button>' : ''}` : ''}
+        </div>`;
+
+      const meta = e.kind === 'extra' && ed ? `<div class="meta">
+          <label>Name<input id="name-${esc(e.id)}" data-field="name" value="${esc(e.name)}" maxlength="80"></label>
+          <label>Models<input id="size-${esc(e.id)}" type="number" min="1" max="999" data-field="size" value="${e.size}"></label>
+        </div>` : '';
+      const del = (e.kind !== 'unit') && ed
+        ? `<div><button class="danger" data-act="delete">${state.armed === e.id ? 'Click again to delete' : 'Delete'}</button></div>` : '';
+      const who = !ed && e.kind === 'unit' ? '<p class="muted" style="margin:0">Only the force\'s owner can change this.</p>' : '';
+
+      return `<div class="editor">${who}${meta}<div class="stages">${stages}</div>${quick}${fields ? `<div class="fields">${fields}</div>` : ''}${photo}${del}</div>`;
+    }
+
+    // ---- Events --------------------------------------------------------------------------------------
+
+    const entryOf = (el) => {
+      const id = el.closest('[data-id]')?.dataset.id;
+      if (!id) return null;
+      for (const p of buildModel()) {
+        for (const e of [...p.forces.flatMap((x) => x.units), ...p.extras, ...p.gone]) if (e.id === id) return e;
+      }
+      return null;
+    };
+
+    document.addEventListener('click', (ev) => {
+      const t = ev.target.closest('[data-act]');
+      if (!t || t.tagName === 'INPUT') return;
+      const act = t.dataset.act;
+      if (act !== 'delete') state.armed = null;
+      if (act === 'signin') return void signInWithPopup(auth, new GoogleAuthProvider()).catch((e) => { if (e.code !== 'auth/popup-closed-by-user') fail(e); });
+      if (act === 'signout') return void signOut(auth);
+      if (act === 'dismiss') { state.error = ''; return render(); }
+      if (act === 'who') { state.who = state.who === t.dataset.who ? 'all' : t.dataset.who; saveView(); return render(); }
+      if (act === 'add-extra') { document.getElementById('extra-form').reset(); return document.getElementById('extra-dlg').showModal(); }
+
+      const e = entryOf(t);
+      if (!e) return;
+      if (act === 'toggle') { state.open.has(e.id) ? state.open.delete(e.id) : state.open.add(e.id); return render(); }
+      if (!e.canEdit) return;
+      const c = [...e.counts];
+      const i = Number(t.dataset.i);
+      if (act === 'inc') {
+        // Take a model from the nearest earlier stage that has one.
+        for (let j = i - 1; j >= 0; j--) if (c[j]) { c[j]--; c[i]++; return void saveCounts(e, c); }
+      }
+      if (act === 'dec' && c[i]) { c[i]--; c[i - 1]++; return void saveCounts(e, c); }
+      if (act === 'all') return void saveCounts(e, c.map((_, j) => (j === i ? e.size : 0)));
+      if (act === 'unphoto') return void setPhoto(e, null);
+      if (act === 'delete') {
+        if (state.armed !== e.id) { state.armed = e.id; return render(); }
+        state.armed = null;
+        state.open.delete(e.id);
+        return void removeEntry(e);
+      }
+    });
+
+    document.addEventListener('change', (ev) => {
+      const t = ev.target;
+      if (t.id === 'who') { state.who = t.value; saveView(); return render(); }
+      if (t.id === 'hide-done') { state.hideDone = t.checked; saveView(); return render(); }
+      const e = entryOf(t);
+      if (!e?.canEdit) return;
+      if (t.dataset.act === 'photo' && t.files?.[0]) return void setPhoto(e, t.files[0]);
+      const field = t.dataset.field;
+      if (field === 'recipe' || field === 'notes') return void savePaint(e, { [field]: t.value.slice(0, 4000) });
+      if (field === 'name' && t.value.trim()) return void savePaint(e, { name: t.value.trim().slice(0, 80) });
+      if (field === 'size') {
+        const size = Math.min(999, Math.max(1, Math.floor(Number(t.value)) || 1));
+        return void savePaint(e, { size, n: stageCounts(e.p, size).slice(1) });
+      }
+    });
+
+    document.addEventListener('input', (ev) => {
+      if (ev.target.id === 'q') { state.q = ev.target.value; render(); }
+    });
+
+    document.getElementById('extra-cancel').addEventListener('click', () => document.getElementById('extra-dlg').close());
+    document.getElementById('extra-form').addEventListener('submit', (ev) => {
+      if (ev.submitter?.value !== 'ok') return;
+      const f = new FormData(ev.target);
+      const name = String(f.get('name') || '').trim().slice(0, 80);
+      const size = Math.min(999, Math.max(1, Math.floor(Number(f.get('size'))) || 1));
+      if (!name) return;
+      const id = `x-${crypto.randomUUID()}`;
+      state.open.add(id);
+      setDoc(doc(db, 'paint', id), { owner: me(), name, size, n: [0, 0, 0, 0], updatedAt: new Date().toISOString() }).catch(fail);
+    });
+
+    render();
+  </script>
+</body>
+</html>
